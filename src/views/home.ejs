@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<style>
+    body {
+        font-family: 'Arial', sans-serif;
+        background-color: #828282;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+
+    .todo-container {
+        background-color: #000000;
+        color: #fff;
+        width: 400px;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+        text-align: center;
+        font-size: 24px;
+        margin-bottom: 20px;
+    }
+
+    .input-container {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+
+    input[type="text"] {
+        width: 70%;
+        padding: 10px;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+    }
+
+    button {
+        width: 25%;
+        padding: 10px;
+        background-color: #28a745;
+        color: #fff;
+        border: none;
+        border-radius: 20px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        margin-left: 9px;
+    }
+
+    button:hover {
+        background-color: #218838;
+    }
+
+    .todo-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .todo-item {
+        background-color: #444;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 16px;
+    }
+
+    .task-text {
+        flex-grow: 1;
+    }
+
+    .task-actions {
+        display: flex;
+        gap: 15px;
+    }
+
+    .task-actions i {
+        cursor: pointer;
+        font-size: 18px;
+        transition: color 0.3s ease;
+    }
+
+    .task-actions .edit-task:hover {
+        color: #ffc107;
+    }
+
+    .task-actions .delete-task:hover {
+        color: #dc3545;
+    }
+
+    .task-input {
+        flex-grow: 1;
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 5px;
+        border: none;
+    }
+</style>
+
+<body>
+    <div class="todo-container">
+        <h1>To-Do List</h1>
+        <div class="input-container">
+            <input type="text" id="new-task" placeholder="Add a new task..." name="taskInput">
+            <button id="add-task-btn">Create</button>
+        </div>
+        <ul class="todo-list" id="todo-list">
+            <% if (tasks.length===0) { %>
+                <li class="todo-item no-tasks-message">
+                    No tasks created yet.
+                </li>
+                <% } else { %>
+                    <% tasks.forEach(function(task) { %>
+                        <li class="todo-item" data-id="<%= task._id %>">
+                            <span class="task-text">
+                                <%= task.task %>
+                            </span>
+                            <div class="task-actions">
+                                <i class="fas fa-pencil-alt edit-task"></i>
+                                <i class="fas fa-trash delete-task"></i>
+                            </div>
+                        </li>
+                        <% }); %>
+                            <% } %>
+        </ul>
+    </div>
+
+    <script>
+        document.getElementById('add-task-btn').addEventListener('click', async () => {
+            const taskInput = document.getElementById('new-task').value;
+
+            if (taskInput.trim() === '') {
+                alert('Please enter a task');
+                return;
+            }
+
+            try {
+                const response = await fetch('/addTask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ taskInput }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to add task. Please try again.');
+            }
+        });
+
+
+        document.querySelectorAll('.edit-task').forEach(editButton => {
+            editButton.addEventListener('click', (e) => {
+                const todoItem = e.target.closest('.todo-item');
+                const taskText = todoItem.querySelector('.task-text');
+                const taskId = todoItem.getAttribute('data-id');
+
+                const taskInput = document.createElement('input');
+                taskInput.type = 'text';
+                taskInput.className = 'task-input';
+                taskInput.value = taskText.textContent;
+
+                taskText.replaceWith(taskInput);
+                taskInput.focus();
+
+                taskInput.addEventListener('keypress', async (event) => {
+                    if (event.key === 'Enter') {
+                        const updatedTask = taskInput.value.trim();
+
+                        if (updatedTask === '') {
+                            alert('Task cannot be empty.');
+                            return;
+                        }
+
+                        try {
+                            const response = await fetch(`/updateTask/${taskId}`, {
+                                method: 'PATCH',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ task: updatedTask }),
+                            });
+
+                            if (response.ok) {
+                                taskInput.replaceWith(document.createTextNode(updatedTask));
+                                location.reload()
+                            } else {
+                                alert('Failed to update task. Please try again.');
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert('Failed to update task. Please try again.');
+                        }
+                    }
+                });
+
+            });
+        });
+
+        document.querySelectorAll('.delete-task').forEach(deleteButton => {
+            deleteButton.addEventListener('click', async (e) => {
+                const todoItem = e.target.closest('.todo-item');
+                const taskId = todoItem.getAttribute('data-id');
+
+                try {
+                    const response = await fetch(`/deleteTask/${taskId}`, {
+                        method: 'DELETE',
+                    });
+
+                    if (response.ok) {
+                        todoItem.remove(); 
+                        if (document.querySelectorAll('.todo-item').length === 0) {
+                            document.getElementById('todo-list').innerHTML = '<li class="todo-item no-tasks-message">No tasks created yet.</li>';
+                        }
+                    } else {
+                        alert('Failed to delete task. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Failed to delete task. Please try again.');
+                }
+            });
+        });
+
+    </script>
+</body>
+
+</html>
